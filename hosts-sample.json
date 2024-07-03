@@ -1,0 +1,12 @@
+{
+  "hosts": [
+    {
+      "name": "raspi-host1",
+      "serial": "1111111111111111"
+    },
+    {
+      "name": "raspi-host2",
+      "serial": "2222222222222222"
+    }
+  ]
+}

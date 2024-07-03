@@ -1,0 +1,48 @@
+version: '3'
+
+vars:
+  IMAGE_FILE: image.img
+  SOURCE_FILE: source.txt
+  DEST_FILE: destination.txt
+  MOUNT_PATH: /mnt/image
+  HOSTS_FILE: hosts-sample.json
+
+tasks:
+  mount-and-copy:
+    desc: Mount and copy user-data
+    cmds:
+      - task: mount-image
+      - task: copy-file
+      - task: unmount-image
+
+  mount-image:
+    desc: Mount the image file
+    cmds:
+      - echo "Creating loop device for the image file"
+      - losetup -fP {{.IMAGE_FILE}}
+      - export LOOP_DEVICE=$(losetup -j {{.IMAGE_FILE}} | cut -d':' -f1)
+      - 'echo "Loop device created: $LOOP_DEVICE"'
+      - mkdir -p {{.MOUNT_PATH}}
+      - mount ${LOOP_DEVICE}p1 {{.MOUNT_PATH}}
+      - echo "Image mounted at {{.MOUNT_PATH}}"
+
+  copy-file:
+    desc: Copy user-data to image mount
+    cmds:
+      - echo "Copying file to the mounted image"
+      - cp {{.SOURCE_FILE}} {{.MOUNT_PATH}}/{{.DEST_FILE}}
+      - echo "File copied successfully"
+
+  unmount-image:
+    desc: Unmount the image file
+    cmds:
+      - echo "Unmounting image"
+      - umount {{.MOUNT_PATH}}
+      - echo "Detaching loop device"
+      - losetup -d $(losetup -j {{.IMAGE_FILE}} | cut -d':' -f1)
+      - echo "Cleanup completed"
+
+  create-user-data:
+    desc: Create cloud init file from template
+    cmds:
+      - jinja2 user-data-pi.j2 {{.HOSTS_FILE}}

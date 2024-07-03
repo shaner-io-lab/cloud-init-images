@@ -1,0 +1,60 @@
+#cloud-config
+
+ssh_pwauth: false
+
+users:
+  - name: shane
+    groups: sudo, sshusers
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFUALbAqmmXjGLbl/76yyzJfBYLs8Efq08AdXm6Fzs7j shane@lab.shaner.local
+  - name: ansible
+    groups: sudo, sshusers
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDm+qzk0GOJithZ5VKSI5nEMubzrXIraT+RSwQm9Iqic ansible@lab.shaner.local
+
+write_files:
+  - path: /usr/local/bin/set-hostname.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      SERIAL=$(cat /proc/cpuinfo | grep Serial | awk '{print $3}')
+    
+      # Define hostnames based on the serial number
+      case $SERIAL in
+        {%- for host in hosts %}
+        "{{ host.serial }}")
+          HOSTNAME="{{ host.name }}"
+          ;;
+        {%- endfor %}
+        *)
+          HOSTNAME="pi-unknown-host"
+          ;;
+      esac
+
+      hostnamectl set-hostname $HOSTNAME
+      
+      printf "Welcome to $(hostname)\nNetwork info is $(hostname -I)\n" > /etc/issue
+  - path: /etc/systemd/system/set-hostname.service
+    content: |
+      [Unit]
+      Description=Set Hostname Based on CPU Info
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/set-hostname.sh
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable set-hostname.service
+  - systemctl start set-hostname.service
+  - sed -i -e '$aAllowGroups sshusers' /etc/ssh/sshd_config
+  - systemctl restart sshd
