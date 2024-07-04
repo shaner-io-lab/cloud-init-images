@@ -1,2 +1,6 @@
+.vscode
+
 user-data
 hosts.json
+
+pve-token.yaml
